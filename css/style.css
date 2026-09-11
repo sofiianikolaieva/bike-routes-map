@@ -7,11 +7,11 @@ body {
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: system-ui, sans-serif;
   font-size: 1rem;
   line-height: 1.5;
   color: #321d1d;
-  background-color: #c3e994;
+  background-color: #a1b47c;
 }
 
 header {

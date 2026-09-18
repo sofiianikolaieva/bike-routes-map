@@ -14,22 +14,39 @@ body {
   background-color: #a1b47c;
 }
 
+/* Адаптивність зображень */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
 header {
+  display: flex;
+  justify-content: space-between;
   background-color: #2d5a27;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
   color: #ffffff;
   padding: 24px;
   border-bottom: 4px solid #8b5a2b;
 }
 
 header h1 {
-  margin: 0 0 12px 0;
-  font-size: 2rem;
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 header nav a {
   color: #ffffff;
   text-decoration: none;
-  margin-right: 20px;
 }
 
 header nav a:hover {
@@ -37,13 +54,15 @@ header nav a:hover {
 }
 
 main {
-  max-width: 900px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 20px 16px;
+  padding: 16px;
 }
 
-main section {
-  margin-bottom: 32px;
+#map-section,
+#routes-section {
+  width: 100%;
+  margin-bottom: 24px;
 }
 
 /* Секція карти  */
@@ -54,13 +73,20 @@ main section {
   background-color: #ffffff;
 }
 
+/* Сітка карток */
+.cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
 /* Картки маршрутів */
 .route-card {
   background-color: #ffffff;
   padding: 16px;
   border: 1px solid #dcdcdc;
   border-radius: 8px;
-  margin-bottom: 16px;
+
 }
 
 .route-card h3 {
@@ -88,8 +114,8 @@ main section {
 
 
 aside {
-  max-width: 900px;
-  margin: 0 auto 32px auto;
+  max-width: 100%;
+  margin: 0 16px 24px 16px;
   padding: 16px;
   background-color: #ffffff;
   border: 1px solid #8b5a2b;
@@ -111,3 +137,48 @@ footer {
 footer p {
   margin: 0;
 }
+
+/* Медіа-запит для планшета (від 600px) */
+@media (min-width: 600px) {
+  header {
+    padding: 20px 32px;
+  }
+
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  aside {
+    max-width: 90%;
+    margin: 0 auto 32px auto;
+  }
+}
+
+/* Медіа-запит для десктопа */
+@media (min-width: 1024px) {
+  main {
+    max-width: 1140px;
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 32px;
+    align-items: start;
+    padding: 32px 24px;
+  }
+
+  #map-section,
+  #routes-section {
+    margin-bottom: 0;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  aside {
+    max-width: 1140px;
+    margin: 0 auto 40px auto;
+    padding: 24px;
+  }
+}
+

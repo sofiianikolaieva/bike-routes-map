@@ -7,11 +7,26 @@ body {
 }
 
 body {
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 1rem;
-  line-height: 1.5;
-  color: #321d1d;
-  background-color: #a1b47c;
+  line-height: 1.6;
+  color: #1f2937;
+  background-color: #b5c595; 
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
 /* Адаптивність зображень */
@@ -24,13 +39,13 @@ img {
 header {
   display: flex;
   justify-content: space-between;
-  background-color: #2d5a27;
+  background-color: #1b4332; 
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
   color: #ffffff;
-  padding: 24px;
-  border-bottom: 4px solid #8b5a2b;
+  padding: 20px 24px;
+  border-bottom: 4px solid #8b5a2b; 
 }
 
 header h1 {
@@ -45,14 +60,16 @@ header nav {
 }
 
 header nav a {
-  color: #ffffff;
+  color: #e8f5e9;
   text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
 }
 
 header nav a:hover {
-  text-decoration: underline;
+  color: #ffb74d;
+  text-decoration: none;
 }
-
 main {
   max-width: 100%;
   margin: 0 auto;
@@ -68,7 +85,8 @@ main {
 /* Секція карти  */
 #map-section img {
   max-width: 100%;
-  border: 2px solid #8b5a2b;
+  border: 2px solid #cbd5e1;
+  border-radius: 8px;
   padding: 8px;
   background-color: #ffffff;
 }
@@ -77,21 +95,53 @@ main {
 .cards {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 20px;
 }
 
 /* Картки маршрутів */
 .route-card {
   background-color: #ffffff;
-  padding: 16px;
-  border: 1px solid #dcdcdc;
-  border-radius: 8px;
+  padding: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px; 
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
 
+/* Крок 7. Нечітка вимога: «має відчуватися активним і енергійним»
+   Обґрунтування:
+   Для передачі активного стилю довжину маршруту виділено контрастним помаранчевим 
+   кольором (#c2410c) та збільшеним шрифтом. Карткам додано анімацію підйому при наведенні 
+   (hover), що робить інтерфейс динамічним і візуально відгукливим на дії користувача. */
+
+.route-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
+}
+
+/* Акцентне число довжини маршруту */
+.route-length {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #c2410c;
 }
 
 .route-card h3 {
-  margin-top: 0;
+  margin: 0;
+  color: #1b4332;
+  font-size: 1.25rem;
 }
+
+.route-card p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 
 /* Бейджі складності */
 .badge {
@@ -103,39 +153,48 @@ main {
 }
 
 .badge-easy {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: #d1e7dd;
+  color: #0f5132;
 }
 
 .badge-medium {
   background-color: #fff3cd;
-  color: #856404;
+  color: #664d03;
 }
 
+.badge-hard {
+  background-color: #f8d7da;
+  color: #842029;
+}
 
 aside {
   max-width: 100%;
-  margin: 0 16px 24px 16px;
-  padding: 16px;
+  margin: 0 16px 32px 16px;
+  padding: 24px;
   background-color: #ffffff;
-  border: 1px solid #8b5a2b;
-  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-left: 6px solid #1b4332;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 aside h2 {
   margin-top: 0;
+  margin-bottom: 12px;
+  color: #1b4332;
+}
+
+aside p {
+  margin: 0;
+  color: #374151;
 }
 
 footer {
-  background-color: #243e20;
-  color: #d1dfd0;
+  background-color: #14281d;
+  color: #cbd5e1;
   text-align: center;
-  padding: 16px;
+  padding: 20px 16px;
   font-size: 0.875rem;
-}
-
-footer p {
-  margin: 0;
 }
 
 /* Медіа-запит для планшета (від 600px) */

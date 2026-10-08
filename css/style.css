@@ -303,3 +303,32 @@ footer {
 .route-form button:hover {
   background-color: #2d6a4f;
 }
+
+.api-controls {
+  margin-bottom: 16px;
+}
+
+#reload-api-btn {
+  padding: 8px 16px;
+  background-color: #1b4332;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#reload-api-btn:hover {
+  background-color: #2d6a4f;
+}
+
+#reload-api-btn:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.error-text {
+  color: #dc2626;
+  font-weight: 600;
+  margin-top: 8px;
+}

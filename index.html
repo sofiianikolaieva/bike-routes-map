@@ -36,6 +36,13 @@
         </select>
       </div>
 
+      <!-- Блок керування API: кнопка оновлення, статус завантаження та помилки -->
+      <div class="api-controls">
+        <button type="button" id="reload-api-btn">Оновити маршрути з API</button>
+        <p id="loading-status" hidden>Завантаження маршрутів із сервера...</p>
+        <p id="error-message" class="error-text" hidden></p>
+      </div>
+
       <div class="cards" id="routes-list">
         <article class="route-card">
           <h3>Маршрут «Дніпровська набережна»</h3>

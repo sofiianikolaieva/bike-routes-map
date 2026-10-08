@@ -162,3 +162,94 @@ difficultyFilter.addEventListener('change', () => {
     renderRoutes(filteredRoutes);
   }
 });
+
+// Ендпоінт варіанта 14: JSONPlaceholder Users
+const API_URL = 'https://jsonplaceholder.typicode.com/users';
+
+const loadingStatus = document.querySelector('#loading-status');
+const reloadBtn = document.querySelector('#reload-api-btn');
+
+// Функція для показу/приховування стану завантаження
+function showLoading(isLoading) {
+  if (loadingStatus) {
+    loadingStatus.hidden = !isLoading;
+  }
+  if (reloadBtn) {
+    reloadBtn.disabled = isLoading;
+  }
+}
+
+const errorMessage = document.querySelector('#error-message');
+
+// Функція для показу або приховування повідомлення про помилку на сторінці
+function showError(message) {
+  if (!errorMessage) return;
+  if (message) {
+    errorMessage.textContent = message;
+    errorMessage.hidden = false;
+  } else {
+    errorMessage.textContent = '';
+    errorMessage.hidden = true;
+  }
+}
+
+// Асинхронна функція для завантаження маршрутів із зовнішнього API
+async function loadRoutesFromApi() {
+  //Показ стану завантаження перед запитом
+  showLoading(true);
+  showError('');
+
+  try {
+      //Виконання HTTP-запиту через Fetch API та очікування відповіді
+      const response = await fetch(API_URL);
+
+      //Перевірка HTTP-статусу відповіді сервера
+      if (!response.ok) {
+        throw new Error(`Сервер відповів кодом ${response.status}`);
+      }
+
+      //Розбір тіла відповіді як JSON
+      const data = await response.json();
+      console.log('Отримані дані з API:', data);
+
+      //Адаптація даних API під структуру маршруту та виведення в DOM
+      const difficulties = ['легкий', 'середній', 'важкий'];
+      const apiRoutes = data.slice(0, 5).map((user, index) => ({
+        name: `${user.name} (${user.address.city})`,
+        km: (index + 1) * 5,
+        difficulty: difficulties[index % 3]
+      }));
+
+      apiRoutes.forEach(apiRoute => {
+            const exists = routes.some(r => r.name === apiRoute.name);
+            if (!exists) {
+              routes.push(apiRoute);
+            }
+      });
+
+      routes.push(...apiRoutes);
+      renderRoutes(routes);
+
+      if (totalKmElement) {
+        const totalKm = calculateTotalDistance(routes);
+        totalKmElement.textContent = `Загальна протяжність усіх маршрутів: ${totalKm} км`;
+      }
+
+    } catch (error) {
+      //Обробка помилки: виведення повідомлення користувачу та логування в консоль
+      showError('Не вдалося завантажити маршрути з сервера. Перевірте з’єднання та спробуйте пізніше.');
+      console.error('Помилка запиту:', error);
+    } finally {
+    // Крок 7. Приховування стану завантаження незалежно від результату
+    showLoading(false);
+  }
+}
+// Виклик функції для завантаження даних
+loadRoutesFromApi();
+
+// Прив'язка повторного виклику loadRoutesFromApi() до кнопки «Оновити»
+if (reloadBtn) {
+  reloadBtn.addEventListener('click', () => {
+    loadRoutesFromApi();
+  });
+}

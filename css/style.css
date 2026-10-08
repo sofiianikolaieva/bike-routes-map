@@ -167,6 +167,19 @@ main {
   color: #842029;
 }
 
+/* Візуальне виділення карток за класами складності  */
+.route-card.easy {
+  border-left: 6px solid #0f5132;
+}
+
+.route-card.medium {
+  border-left: 6px solid #d97706;
+}
+
+.route-card.hard {
+  border-left: 6px solid #842029;
+}
+
 aside {
   max-width: 100%;
   margin: 0 16px 32px 16px;

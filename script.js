@@ -107,3 +107,58 @@ if (totalKmElement) {
   totalKmElement.textContent = `Загальна протяжність усіх маршрутів: ${totalKm} км`;
 }
 
+// Вибір форми та підписка на подію submit
+const routeForm = document.querySelector('#add-route-form');
+const nameInput = document.querySelector('#route-name');
+const lengthInput = document.querySelector('#route-length');
+const difficultySelect = document.querySelector('#route-difficulty');
+
+routeForm.addEventListener('submit', event => {
+  //Скасування стандартного перезавантаження сторінки
+  event.preventDefault();
+
+  //Зчитування значень полів форми
+  const name = nameInput.value.trim();
+  const km = Number(lengthInput.value);
+  const difficulty = difficultySelect.value;
+
+  //Створення нового об'єкта та додавання в масив routes
+  const newRoute = { name, km, difficulty };
+  routes.push(newRoute);
+
+  //Перемальовування списку маршрутів та оновлення підсумку
+  renderRoutes(routes);
+  if (totalKmElement) {
+    const totalKm = calculateTotalDistance(routes);
+    totalKmElement.textContent = `Загальна протяжність усіх маршрутів: ${totalKm} км`;
+  }
+
+  //Очищення полів форми після успішного додавання
+  routeForm.reset();
+});
+
+//Додаткова клієнтська валідація поля довжини маршруту (lengthKm)
+lengthInput.addEventListener('input', () => {
+  const value = Number(lengthInput.value);
+
+  if (lengthInput.value !== '' && value > 300) {
+    lengthInput.setCustomValidity('Довжина міського веломаршруту не може перевищувати 300 км');
+  } else {
+    lengthInput.setCustomValidity(''); // Повернення поля у валідний стан
+  }
+});
+
+
+// Фільтрація списку маршрутів за обраною складністю (подія change)
+const difficultyFilter = document.querySelector('#difficulty-filter');
+
+difficultyFilter.addEventListener('change', () => {
+  const selectedDifficulty = difficultyFilter.value;
+
+  if (selectedDifficulty === 'all') {
+    renderRoutes(routes);
+  } else {
+    const filteredRoutes = routes.filter(route => route.difficulty === selectedDifficulty);
+    renderRoutes(filteredRoutes);
+  }
+});

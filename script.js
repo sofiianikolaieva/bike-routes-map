@@ -90,7 +90,9 @@ function renderRoutes(routesList) {
     title.textContent = route.name;
 
     const details = document.createElement('p');
-    details.textContent = `${route.km} км, ${route.difficulty}`;
+    // Якщо у маршруту є поле city (з API), виводимо його
+    const cityText = route.city ? `Місто: ${route.city} | ` : '';
+    details.textContent = `${cityText}${route.km} км, ${route.difficulty}`;
 
     card.append(title, details);
 
@@ -193,7 +195,8 @@ function showError(message) {
   }
 }
 
-// Асинхронна функція для завантаження маршрутів із зовнішнього API
+// Асинхронна функція для завантаження маршрутів із зовнішнього API,
+// https://jsonplaceholder.typicode.com/users
 async function loadRoutesFromApi() {
   //Показ стану завантаження перед запитом
   showLoading(true);
@@ -214,20 +217,21 @@ async function loadRoutesFromApi() {
 
       //Адаптація даних API під структуру маршруту та виведення в DOM
       const difficulties = ['легкий', 'середній', 'важкий'];
-      const apiRoutes = data.slice(0, 5).map((user, index) => ({
-        name: `${user.name} (${user.address.city})`,
-        km: (index + 1) * 5,
-        difficulty: difficulties[index % 3]
+      const apiRoutes = data.slice(0, 5).map(user => ({
+        name: user.name,                 // Беремо назву чистою
+        city: user.address.city,         // Зберігаємо місто в окреме поле
+        km: user.id * 5,                 // Обчислюємо км з поля id (з API)
+        difficulty: difficulties[user.id % 3] // Обчислюємо складність з поля id
       }));
 
+      // Дедуплікація: додаємо лише тих, кого ще немає
       apiRoutes.forEach(apiRoute => {
-            const exists = routes.some(r => r.name === apiRoute.name);
-            if (!exists) {
-              routes.push(apiRoute);
-            }
+        const exists = routes.some(r => r.name === apiRoute.name);
+        if (!exists) {
+          routes.push(apiRoute);
+        }
       });
 
-      routes.push(...apiRoutes);
       renderRoutes(routes);
 
       if (totalKmElement) {

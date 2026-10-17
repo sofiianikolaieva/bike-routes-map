@@ -332,3 +332,24 @@ footer {
   font-weight: 600;
   margin-top: 8px;
 }
+
+/* ПР 10: обрана картка та час у дорозі */
+.route-card {
+  cursor: pointer;
+}
+
+.route-card.selected {
+  outline: 3px solid #1b4332;
+  background-color: #f0fdf4;
+}
+
+.route-time {
+  color: #555;
+  font-style: italic;
+}
+
+.selected-info {
+  margin-top: 8px;
+  font-weight: 600;
+  color: #1b4332;
+}

@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Карта веломаршрутів</title>
 <link rel="stylesheet" href="css/style.css">
+<!-- Vue 3, глобальна збірка через CDN -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="script.js" defer></script>
 </head>
 <body>
@@ -43,26 +45,8 @@
         <p id="error-message" class="error-text" hidden></p>
       </div>
 
-      <div class="cards" id="routes-list">
-        <article class="route-card">
-          <h3>Маршрут «Дніпровська набережна»</h3>
-          <p>Довжина: <span class="route-length">12 км</span></p>
-          <p>Складність: <span class="badge badge-easy">легка</span></p>
-        </article>
-
-        <article class="route-card">
-          <h3>Маршрут «Голосіївський ліс»</h3>
-          <p>Довжина: <span class="route-length">18 км</span></p>
-          <p>Складність: <span class="badge badge-medium">середня</span></p>
-        </article>
-
-        <article class="route-card">
-          <h3>Маршрут «Труханів острів»</h3>
-          <p>Довжина: <span class="route-length">10 км</span></p>
-          <p>Складність: <span class="badge badge-hard">важка</span></p>
-        </article>
-      </div>
-      <p id="total-km">Загальна протяжність маршрутів: 0 км</p>
+      <!-- Точка монтування Vue: список карток і підсумок рендерить компонентний застосунок -->
+      <div id="app"></div>     
 
       <!-- Форма додавання нового маршруту -->
       <form id="add-route-form" class="route-form">

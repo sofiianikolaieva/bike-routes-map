@@ -1,11 +1,106 @@
+// Практична робота №10. Обрано фреймворк Vue 3: він підключається одним CDN-скриптом
+// без Babel і збірки, а його шаблони (v-for, @click, {{ }}) найближчі до звичайного HTML,
+// який уже використовується в проєкті
+
 console.log('script.js підключено');
 
-// Масив об'єктів веломаршрутів міста з назвою, кілометражем та рівнем складності
-const routes = [
-  { name: 'Дніпровська набережна', km: 12, difficulty: 'легкий' },
-  { name: 'Голосіївський ліс', km: 18, difficulty: 'середній' },
-  { name: 'Труханів острів', km: 10, difficulty: 'важкий' }
-];
+// Середня швидкість велосипедиста для розрахунку часу в дорозі (км/год)
+const AVERAGE_SPEED_KMH = 15;
+
+// Компонент картки маршруту RouteCard: отримує всі дані лише через props
+const RouteCard = {
+  props: {
+    name: { type: String, required: true },
+    lengthKm: { type: Number, required: true },
+    difficulty: { type: String, required: true },
+    city: { type: String, default: '' },
+    isSelected: { type: Boolean, default: false }
+  },
+  emits: ['select'],
+  computed: {
+    // Похідне значення варіанта 14: приблизний час у дорозі = lengthKm / 15 км/год
+    travelTime() {
+      const totalMinutes = Math.round((this.lengthKm / AVERAGE_SPEED_KMH) * 60);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      return hours > 0 ? `${hours} год ${minutes} хв` : `${minutes} хв`;
+    },
+    // CSS-клас кольорової смужки за складністю (easy / medium / hard)
+    difficultyClass() {
+      const classes = { 'легкий': 'easy', 'середній': 'medium', 'важкий': 'hard' };
+      return classes[this.difficulty] || '';
+    }
+  },
+  template: `
+    <article class="route-card" :class="[difficultyClass, { selected: isSelected }]"
+             @click="$emit('select')">
+      <h3>{{ name }}</h3>
+      <p>{{ city ? 'Місто: ' + city + ' | ' : '' }}{{ lengthKm }} км, {{ difficulty }}</p>
+      <p class="route-time">Час у дорозі: ~{{ travelTime }}</p>
+    </article>`
+};
+
+// Кореневий застосунок Vue: зберігає масив маршрутів у реактивному стані data()
+const app = Vue.createApp({
+  components: { RouteCard },
+  data() {
+    return {
+      routes: [
+        { id: 1, name: 'Дніпровська набережна', km: 12, difficulty: 'легкий' },
+        { id: 2, name: 'Голосіївський ліс', km: 18, difficulty: 'середній' },
+        { id: 3, name: 'Труханів острів', km: 10, difficulty: 'важкий' }
+      ],
+      difficultyFilter: 'all', // значення фільтра складності
+      selectedId: null         // id обраного маршруту
+    };
+  },
+    computed: {
+    // Список, відфільтрований за складністю (перераховується автоматично)
+    filteredRoutes() {
+      if (this.difficultyFilter === 'all') {
+        return this.routes;
+      }
+      return this.routes.filter(route => route.difficulty === this.difficultyFilter);
+    },
+    // Загальна протяжність усіх маршрутів
+    totalKm() {
+      return this.routes.reduce((sum, route) => sum + route.km, 0);
+    },
+    // Об'єкт обраного маршруту
+    selectedRoute() {
+      return this.routes.find(route => route.id === this.selectedId) || null;
+    }
+  },
+    methods: {
+    // Обробник події select від RouteCard: повторний клік знімає вибір
+    selectRoute(id) {
+      this.selectedId = this.selectedId === id ? null : id;
+    }
+  },
+  template: `
+    <div class="cards" id="routes-list">
+      <route-card
+        v-for="route in filteredRoutes"
+        :key="route.id"
+        :name="route.name"
+        :length-km="route.km"
+        :difficulty="route.difficulty"
+        :city="route.city"
+        :is-selected="route.id === selectedId"
+        @select="selectRoute(route.id)"
+      ></route-card>
+    </div>
+    <p id="total-km">Загальна протяжність усіх маршрутів: {{ totalKm }} км</p>
+    <p v-if="selectedRoute" class="selected-info">
+      Обрано маршрут «{{ selectedRoute.name }}» — {{ selectedRoute.km }} км
+    </p>`
+});
+
+// Монтування застосунку в контейнер #app
+const vm = app.mount('#app');
+
+// Посилання на реактивний масив маршрутів зі стану Vue (зміни через нього перемальовують список)
+const routes = vm.routes;
 
 console.log('Дані маршрутів:', routes);
 
@@ -56,6 +151,11 @@ for (const route of routes) {
   const estimatedTime = estimateMinutes(route.km);
   console.log(`Орієнтовний час для «${route.name}» (${route.km} км): ~${estimatedTime} хв`);
 }
+
+/*
+  ПР №10: ручний DOM-рендер списку з практикуму 7 більше не використовується.
+  Його замінено компонентом Vue RouteCard (v-for з :key) у кореневому застосунку,
+  тому Vue сам перемальовує картки при кожній зміні масиву routes.
 
 //Динамічне видалення статичного прикладу картки через DOM API
 const staticCard = document.querySelector('#routes-list .route-card');
@@ -108,6 +208,7 @@ if (totalKmElement) {
   const totalKm = calculateTotalDistance(routes);
   totalKmElement.textContent = `Загальна протяжність усіх маршрутів: ${totalKm} км`;
 }
+*/
 
 // Вибір форми та підписка на подію submit
 const routeForm = document.querySelector('#add-route-form');
@@ -125,15 +226,8 @@ routeForm.addEventListener('submit', event => {
   const difficulty = difficultySelect.value;
 
   //Створення нового об'єкта та додавання в масив routes
-  const newRoute = { name, km, difficulty };
-  routes.push(newRoute);
-
-  //Перемальовування списку маршрутів та оновлення підсумку
-  renderRoutes(routes);
-  if (totalKmElement) {
-    const totalKm = calculateTotalDistance(routes);
-    totalKmElement.textContent = `Загальна протяжність усіх маршрутів: ${totalKm} км`;
-  }
+  const newRoute = { id: Date.now(), name, km, difficulty };
+  routes.push(newRoute); // Vue сам перемалює список і перерахує загальну протяжність
 
   //Очищення полів форми після успішного додавання
   routeForm.reset();
@@ -155,14 +249,8 @@ lengthInput.addEventListener('input', () => {
 const difficultyFilter = document.querySelector('#difficulty-filter');
 
 difficultyFilter.addEventListener('change', () => {
-  const selectedDifficulty = difficultyFilter.value;
-
-  if (selectedDifficulty === 'all') {
-    renderRoutes(routes);
-  } else {
-    const filteredRoutes = routes.filter(route => route.difficulty === selectedDifficulty);
-    renderRoutes(filteredRoutes);
-  }
+  // Передаємо значення фільтра в реактивний стан Vue — computed filteredRoutes оновиться сам
+  vm.difficultyFilter = difficultyFilter.value;
 });
 
 // Ендпоінт варіанта 14: JSONPlaceholder Users
@@ -218,6 +306,7 @@ async function loadRoutesFromApi() {
       //Адаптація даних API під структуру маршруту та виведення в DOM
       const difficulties = ['легкий', 'середній', 'важкий'];
       const apiRoutes = data.slice(0, 5).map(user => ({
+        id: `api-${user.id}`,            // Унікальний id для :key у v-for
         name: user.name,                 // Беремо назву чистою
         city: user.address.city,         // Зберігаємо місто в окреме поле
         km: user.id * 5,                 // Обчислюємо км з поля id (з API)
@@ -231,13 +320,6 @@ async function loadRoutesFromApi() {
           routes.push(apiRoute);
         }
       });
-
-      renderRoutes(routes);
-
-      if (totalKmElement) {
-        const totalKm = calculateTotalDistance(routes);
-        totalKmElement.textContent = `Загальна протяжність усіх маршрутів: ${totalKm} км`;
-      }
 
     } catch (error) {
       //Обробка помилки: виведення повідомлення користувачу та логування в консоль

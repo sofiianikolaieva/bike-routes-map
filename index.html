@@ -79,7 +79,14 @@
   </main>
   <aside id="details-section">
     <h2>Деталі обраного маршруту</h2>
-    <p>Оберіть маршрут зі списку, щоб переглянути детальний опис, покриття дороги та перепад висот.</p>
+    <p id="details-text">Оберіть маршрут зі списку, щоб переглянути детальний опис, покриття дороги та перепад висот.</p>
+    <!-- ПР 12: полотно для профілю висоти обраного маршруту -->
+    <canvas id="elevation-chart" width="600" height="250"></canvas>
+    <!-- ПР 12: керування анімацією профілю -->
+    <div class="chart-controls">
+      <button type="button" id="replay-animation-btn" disabled>↻ Повторити анімацію</button>
+      <button type="button" id="stop-animation-btn" disabled>⏹ Зупинити</button>
+    </div>
   </aside>
 <footer>
     <p>Проєкт «Карта веломаршрутів міста». Виконала студентка групи ІП-51 Ніколаєва С.О. &copy; 2026</p>

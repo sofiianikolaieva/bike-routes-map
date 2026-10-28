@@ -546,3 +546,301 @@ if (reloadBtn) {
     loadRoutesFromApi();
   });
 }
+
+// =====================================================================
+// ПР №12. Анімація та Canvas (варіант 14): профіль висоти маршруту.
+// Обрано Canvas API, а не CSS-анімацію: лінійний графік із довільною кількістю
+// точок висоти неможливо зібрати з готових DOM-елементів, тому його малюємо
+// на растровій поверхні <canvas> і анімуємо через requestAnimationFrame.
+// Графік будується за даними обраного маршруту (distanceKm, difficulty, id).
+// =====================================================================
+
+// Полотно профілю висоти та його 2D-контекст для малювання
+const elevationCanvas = document.querySelector('#elevation-chart');
+const ctx = elevationCanvas.getContext('2d');
+
+// Перевірка кроку 3: тестове малювання (далі полотно перемальовує drawPlaceholder())
+ctx.fillStyle = '#d8e6c8';
+ctx.fillRect(0, 0, elevationCanvas.width, elevationCanvas.height);
+ctx.fillStyle = '#1b4332';
+ctx.font = '16px sans-serif';
+ctx.fillText('Canvas готовий до малювання', 20, 30);
+
+// ---------- Крок 4. Дані та малювання профілю висоти ----------
+
+const BASE_ELEVATION_M = 100;   // умовна висота старту маршруту, м
+// Перепад висот залежить від складності маршруту
+const AMPLITUDE_BY_DIFFICULTY = { 'легкий': 15, 'середній': 40, 'важкий': 80 };
+
+// Перетворює id маршруту на число-«зерно», щоб профіль одного маршруту завжди був однаковим
+function idToSeed(id) {
+  return String(id).split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+}
+
+// Простий генератор псевдовипадкових чисел 0..1 з фіксованим зерном
+function createRandom(seed) {
+  let value = seed;
+  return () => {
+    value = (value * 9301 + 49297) % 233280;
+    return value / 233280;
+  };
+}
+
+// Формує умовні точки висоти вздовж маршруту з його полів distanceKm, difficulty та id
+function generateElevationPoints(route) {
+  const count = Math.min(Math.max(Math.round(route.distanceKm) + 1, 6), 40);
+  const amplitude = AMPLITUDE_BY_DIFFICULTY[route.difficulty] || 30;
+  const random = createRandom(idToSeed(route.id));
+
+  const points = [];
+  let elevation = BASE_ELEVATION_M;
+  for (let i = 0; i < count; i++) {
+    if (i > 0) {
+      elevation += (random() - 0.5) * amplitude;  // підйом або спуск на ділянці
+      elevation = Math.min(Math.max(elevation, BASE_ELEVATION_M - amplitude / 2), BASE_ELEVATION_M + amplitude);
+    }
+    points.push({
+      distanceKm: (route.distanceKm * i) / (count - 1),
+      elevation: Math.round(elevation)
+    });
+  }
+  return points;
+}
+
+// Відступи області графіка всередині полотна
+const CHART_PADDING = { top: 40, right: 20, bottom: 35, left: 50 };
+
+// Малює профіль висоти маршруту; progress (0..1) — яку частину лінії вже намальовано
+function drawElevationProfile(route, progress = 1) {
+  const points = generateElevationPoints(route);
+  const width = elevationCanvas.width;
+  const height = elevationCanvas.height;
+  const chartWidth = width - CHART_PADDING.left - CHART_PADDING.right;
+  const chartHeight = height - CHART_PADDING.top - CHART_PADDING.bottom;
+
+  const elevations = points.map(p => p.elevation);
+  const minElevation = Math.min(...elevations) - 5;
+  const maxElevation = Math.max(...elevations) + 5;
+
+  // Перетворення «км / метри» у пікселі полотна
+  const toX = km => CHART_PADDING.left + (km / route.distanceKm) * chartWidth;
+  const toY = m => CHART_PADDING.top + (1 - (m - minElevation) / (maxElevation - minElevation)) * chartHeight;
+
+  ctx.clearRect(0, 0, width, height);
+
+  // Заголовок графіка
+  ctx.fillStyle = '#1b4332';
+  ctx.font = 'bold 15px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Профіль висоти: ${route.name}`, CHART_PADDING.left, 22);
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(`перепад ${Math.max(...elevations) - Math.min(...elevations)} м`, width - CHART_PADDING.right, 22);
+
+  // Горизонтальні лінії сітки з підписами висоти
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+  ctx.fillStyle = '#555';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const m = minElevation + ((maxElevation - minElevation) * i) / 4;
+    const y = toY(m);
+    ctx.beginPath();
+    ctx.moveTo(CHART_PADDING.left, y);
+    ctx.lineTo(width - CHART_PADDING.right, y);
+    ctx.stroke();
+    ctx.fillText(`${Math.round(m)} м`, CHART_PADDING.left - 6, y + 4);
+  }
+
+  // Підписи відстані під графіком
+  ctx.textAlign = 'center';
+  [0, route.distanceKm / 2, route.distanceKm].forEach(km => {
+    ctx.fillText(`${Math.round(km * 10) / 10} км`, toX(km), height - 12);
+  });
+
+  // Ламана лінія профілю до поточного progress (остання ділянка — частково)
+  const lastIndex = (points.length - 1) * progress;
+  const fullSegments = Math.floor(lastIndex);
+  const visible = points.slice(0, fullSegments + 1).map(p => ({ x: toX(p.distanceKm), y: toY(p.elevation) }));
+  if (fullSegments < points.length - 1) {
+    const a = points[fullSegments];
+    const b = points[fullSegments + 1];
+    const t = lastIndex - fullSegments;
+    visible.push({
+      x: toX(a.distanceKm + (b.distanceKm - a.distanceKm) * t),
+      y: toY(a.elevation + (b.elevation - a.elevation) * t)
+    });
+  }
+
+  // Заливка під лінією
+  ctx.beginPath();
+  ctx.moveTo(visible[0].x, CHART_PADDING.top + chartHeight);
+  visible.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.lineTo(visible[visible.length - 1].x, CHART_PADDING.top + chartHeight);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(45, 106, 79, 0.2)';
+  ctx.fill();
+
+  // Сама лінія профілю
+  ctx.beginPath();
+  visible.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+  ctx.strokeStyle = '#2d6a4f';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // «Велосипедист» — точка на кінці намальованої частини лінії
+  const tip = visible[visible.length - 1];
+  ctx.beginPath();
+  ctx.arc(tip.x, tip.y, 6, 0, Math.PI * 2);
+  ctx.fillStyle = '#d97706';
+  ctx.fill();
+}
+
+// ---------- Крок 5. Цикл анімації через requestAnimationFrame ----------
+
+const ANIMATION_DURATION_MS = 2000;  // тривалість промальовування графіка
+let animationId = null;              // id поточного кадру (для cancelAnimationFrame)
+let animationStart = null;           // час початку анімації
+let animatedRoute = null;            // маршрут, профіль якого анімується
+
+// Один кадр анімації: оновлює progress, очищує полотно й перемальовує графік
+function drawFrame(timestamp) {
+  if (animationStart === null) {
+    animationStart = timestamp;
+  }
+  const progress = Math.min((timestamp - animationStart) / ANIMATION_DURATION_MS, 1);
+
+  drawElevationProfile(animatedRoute, progress);  // всередині викликається clearRect
+
+  if (progress < 1) {
+    animationId = requestAnimationFrame(drawFrame);  // наступний кадр
+  } else {
+    animationId = null;                               // анімацію завершено
+  }
+}
+
+// Запускає анімацію профілю для маршруту з початку
+function startElevationAnimation(route) {
+  stopElevationAnimation();
+  animatedRoute = route;
+  animationStart = null;
+  animationId = requestAnimationFrame(drawFrame);
+}
+
+// Зупиняє анімацію, якщо вона ще триває
+function stopElevationAnimation() {
+  if (animationId !== null) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+}
+
+
+// ---------- Крок 6. Прив'язка анімації до дій користувача ----------
+
+const detailsText = document.querySelector('#details-text');
+const DETAILS_HINT = 'Оберіть маршрут зі списку, щоб переглянути його профіль висоти.';
+
+// Порожній стан полотна, коли жоден маршрут не обрано
+function drawPlaceholder() {
+  ctx.clearRect(0, 0, elevationCanvas.width, elevationCanvas.height);
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '15px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Оберіть маршрут у списку, щоб побачити профіль висоти',
+    elevationCanvas.width / 2, elevationCanvas.height / 2);
+}
+
+// Показує профіль обраного маршруту (з анімацією) або порожній стан
+function showRouteProfile(route) {
+  if (!route) {
+    stopElevationAnimation();
+    animatedRoute = null;
+    detailsText.textContent = DETAILS_HINT;
+    drawPlaceholder();
+  } else {
+    detailsText.textContent =
+      `Маршрут «${route.name}»: ${route.distanceKm} км, ${route.difficulty}. Нижче — умовний профіль висоти.`;
+    startElevationAnimation(route);
+  }
+  updateAnimationControls();
+}
+
+// Реакція на вибір маршруту кліком по картці (або на видалення обраного маршруту)
+vm.$watch(
+  () => (vm.selectedRoute ? vm.selectedRoute.id : null),
+  () => showRouteProfile(vm.selectedRoute)
+);
+
+// Реакція на додавання маршруту: новий маршрут одразу обирається й анімується його профіль
+vm.$watch(
+  () => routes.map(route => route.id),
+  (newIds, oldIds) => {
+    const addedIds = newIds.filter(id => !oldIds.includes(id));
+    if (oldIds.length > 0 && addedIds.length === 1) {
+      vm.selectedId = addedIds[0];
+    }
+  }
+);
+
+// ---------- Крок 7. Кнопки керування анімацією ----------
+
+const replayAnimationBtn = document.querySelector('#replay-animation-btn');
+const stopAnimationBtn = document.querySelector('#stop-animation-btn');
+
+// Кнопки активні лише тоді, коли обрано маршрут
+function updateAnimationControls() {
+  const hasRoute = animatedRoute !== null;
+  replayAnimationBtn.disabled = !hasRoute;
+  stopAnimationBtn.disabled = !hasRoute;
+}
+
+// «Повторити анімацію» — промальовує профіль обраного маршруту з початку
+replayAnimationBtn.addEventListener('click', () => {
+  if (animatedRoute) {
+    startElevationAnimation(animatedRoute);
+  }
+});
+
+// «Зупинити» — зупиняє анімацію на поточному кадрі
+stopAnimationBtn.addEventListener('click', () => {
+  stopElevationAnimation();
+});
+
+// Початковий стан полотна до вибору маршруту
+detailsText.textContent = DETAILS_HINT;
+drawPlaceholder();
+
+// ---------- Крок 8. Зупинка анімації, коли полотно поза екраном ----------
+
+let isCanvasVisible = false;     // чи видно полотно у вікні браузера
+let replayWhenVisible = false;   // чи треба програти анімацію, коли полотно з'явиться
+
+// IntersectionObserver повідомляє, коли полотно з'являється на екрані або зникає з нього
+const canvasObserver = new IntersectionObserver(entries => {
+  isCanvasVisible = entries[0].isIntersecting;
+
+  if (!isCanvasVisible && animationId !== null) {
+    // Полотно прокрутили за межі екрана — немає сенсу малювати кадри, яких ніхто не бачить
+    stopElevationAnimation();
+    replayWhenVisible = true;
+    console.log('Полотно поза екраном — анімацію зупинено (cancelAnimationFrame)');
+  } else if (isCanvasVisible && replayWhenVisible && animatedRoute) {
+    // Полотно знову видно — програємо профіль з початку
+    replayWhenVisible = false;
+    startElevationAnimation(animatedRoute);
+    console.log('Полотно знову на екрані — анімацію запущено');
+  }
+});
+canvasObserver.observe(elevationCanvas);
+
+// Якщо маршрут обрали, коли полотна не видно, анімацію відкладаємо до його появи на екрані
+vm.$watch(
+  () => (vm.selectedRoute ? vm.selectedRoute.id : null),
+  () => {
+    if (!isCanvasVisible && animationId !== null) {
+      stopElevationAnimation();
+      replayWhenVisible = true;
+      console.log('Полотно поза екраном — анімацію відкладено');
+    }
+  }
+);

@@ -368,3 +368,36 @@ footer {
 .delete-btn:hover {
   background-color: #a52834;
 }
+
+/* ПР 12: полотно профілю висоти */
+#elevation-chart {
+  display: block;
+  width: 100%;          /* полотно масштабується під ширину блоку */
+  max-width: 600px;
+  height: auto;
+  margin-top: 12px;
+  background-color: #f8faf5;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+}
+
+/* ПР 12: кнопки керування анімацією профілю */
+.chart-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chart-controls button {
+  padding: 6px 14px;
+  background-color: #1b4332;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.chart-controls button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}

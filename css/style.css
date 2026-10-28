@@ -353,3 +353,18 @@ footer {
   font-weight: 600;
   color: #1b4332;
 }
+
+/* ПР 11: кнопка видалення маршруту */
+.delete-btn {
+  align-self: flex-start;
+  padding: 6px 12px;
+  background-color: #842029;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.delete-btn:hover {
+  background-color: #a52834;
+}

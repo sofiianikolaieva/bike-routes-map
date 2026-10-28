@@ -16,7 +16,7 @@ const RouteCard = {
     city: { type: String, default: '' },
     isSelected: { type: Boolean, default: false }
   },
-  emits: ['select'],
+  emits: ['select', 'delete'],
   computed: {
     // Похідне значення варіанта 14: приблизний час у дорозі = lengthKm / 15 км/год
     travelTime() {
@@ -37,19 +37,167 @@ const RouteCard = {
       <h3>{{ name }}</h3>
       <p>{{ city ? 'Місто: ' + city + ' | ' : '' }}{{ lengthKm }} км, {{ difficulty }}</p>
       <p class="route-time">Час у дорозі: ~{{ travelTime }}</p>
+      <button type="button" class="delete-btn" @click.stop="$emit('delete')">Видалити</button>
     </article>`
 };
+
+/*
+  ПР №11. Модель даних запису веломаршруту (варіант 14):
+  {
+    id: number | string,  // унікальний ідентифікатор запису (буде keyPath у IndexedDB)
+    name: string,         // назва маршруту
+    distanceKm: number,   // довжина маршруту в кілометрах
+    difficulty: string,   // складність: 'легкий' | 'середній' | 'важкий'
+    city?: string         // місто (є лише в маршрутів, отриманих з API)
+  }
+  id задається так: 1, 2, 3 — для початкових маршрутів,
+  Date.now() — для доданих через форму, 'api-N' — для маршрутів з API.
+*/
+
+// Ключ, під яким маршрути зберігаються в localStorage
+const STORAGE_KEY = 'bikeRoutes';
+
+// Зберігає масив маршрутів у localStorage у вигляді JSON-рядка
+function saveToLocalStorage(items) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  console.log('Маршрути збережено в localStorage:', items.length);
+}
+
+// Читає масив маршрутів із localStorage; при пошкоджених даних повертає порожній масив
+function loadFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error('Пошкоджені дані в localStorage:', error);
+    return [];
+  }
+}
+
+// =====================================================================
+// ПР №11. Робота з IndexedDB: маршрути зберігаються в локальній базі
+// браузера й відновлюються після перезавантаження сторінки.
+// Доступ асинхронний — кожна операція виконується в транзакції
+// (readonly для читання, readwrite для запису й видалення) і повертає Promise.
+// =====================================================================
+
+/*
+  Схема IndexedDB:
+  база BikeRoutesDB, версія 1,
+  одне об'єктне сховище "routes" з ключем keyPath "id"
+  (той самий унікальний id, що й у моделі даних маршруту).
+*/
+const DB_NAME = 'BikeRoutesDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'routes';
+
+// Відкриває (або створює) базу IndexedDB і повертає Promise з об'єктом бази.
+// onupgradeneeded спрацьовує лише при першому створенні бази або підвищенні версії —
+// саме тут створюється об'єктне сховище routes з ключем id.
+function openDB() {
+  return new Promise((resolve, reject) => {
+    // Деякі браузери чи режими приватного перегляду не надають IndexedDB
+    if (!window.indexedDB) {
+      reject(new Error('IndexedDB не підтримується в цьому браузері'));
+      return;
+    }
+
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        console.log(`Створено об'єктне сховище "${STORE_NAME}"`);
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// ---------- CRUD-операції з IndexedDB ----------
+
+// Додає новий маршрут у сховище (put створює запис, якщо такого id ще немає)
+async function addItem(item) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).put(item);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// Оновлює наявний маршрут (put з тим самим id перезаписує запис без дублювання)
+async function updateItem(item) {
+  return addItem(item);
+}
+
+// Повертає всі маршрути зі сховища (транзакція лише для читання)
+async function getAllItems() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const request = tx.objectStore(STORE_NAME).getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Видаляє маршрут зі сховища за його id
+async function deleteItem(id) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// ---------- Одноразова міграція з localStorage в IndexedDB ----------
+
+// Прапорець у localStorage, який показує, що міграцію вже виконано
+const MIGRATION_FLAG = 'routesMigrated';
+
+// Переносить маршрути з localStorage в IndexedDB лише один раз:
+// якщо сховище routes порожнє, а в localStorage є збережені дані
+async function migrateFromLocalStorage() {
+  if (localStorage.getItem(MIGRATION_FLAG) === 'true') {
+    console.log('Міграцію вже виконано раніше — пропускаємо');
+    return;
+  }
+
+  const itemsInDb = await getAllItems();
+  const savedRoutes = loadFromLocalStorage();
+
+  if (itemsInDb.length === 0 && savedRoutes.length > 0) {
+    for (const route of savedRoutes) {
+      await addItem(route);
+    }
+    console.log(`Перенесено маршрутів з localStorage в IndexedDB: ${savedRoutes.length}`);
+  }
+
+  // Позначаємо, що міграцію виконано, щоб не повторювати її при наступних запусках
+  localStorage.setItem(MIGRATION_FLAG, 'true');
+}
+
+// Початкові маршрути, які записуються в IndexedDB, якщо база порожня (перший запуск)
+const DEFAULT_ROUTES = [
+  { id: 1, name: 'Дніпровська набережна', distanceKm: 12, difficulty: 'легкий' },
+  { id: 2, name: 'Голосіївський ліс', distanceKm: 18, difficulty: 'середній' },
+  { id: 3, name: 'Труханів острів', distanceKm: 10, difficulty: 'важкий' }
+];
 
 // Кореневий застосунок Vue: зберігає масив маршрутів у реактивному стані data()
 const app = Vue.createApp({
   components: { RouteCard },
   data() {
     return {
-      routes: [
-        { id: 1, name: 'Дніпровська набережна', km: 12, difficulty: 'легкий' },
-        { id: 2, name: 'Голосіївський ліс', km: 18, difficulty: 'середній' },
-        { id: 3, name: 'Труханів острів', km: 10, difficulty: 'важкий' }
-      ],
+      routes: [],              // заповнюється даними з IndexedDB через getAllItems()
       difficultyFilter: 'all', // значення фільтра складності
       selectedId: null         // id обраного маршруту
     };
@@ -64,7 +212,7 @@ const app = Vue.createApp({
     },
     // Загальна протяжність усіх маршрутів
     totalKm() {
-      return this.routes.reduce((sum, route) => sum + route.km, 0);
+      return this.routes.reduce((sum, route) => sum + route.distanceKm, 0);
     },
     // Об'єкт обраного маршруту
     selectedRoute() {
@@ -75,6 +223,18 @@ const app = Vue.createApp({
     // Обробник події select від RouteCard: повторний клік знімає вибір
     selectRoute(id) {
       this.selectedId = this.selectedId === id ? null : id;
+    },
+    // Видаляє маршрут з IndexedDB і перемальовує список з бази
+    async deleteRoute(id) {
+      try {
+        await deleteItem(id);
+        if (this.selectedId === id) {
+          this.selectedId = null;
+        }
+        await refreshRoutesFromDb();
+      } catch (error) {
+        showDbError(error);
+      }
     }
   },
   template: `
@@ -83,16 +243,17 @@ const app = Vue.createApp({
         v-for="route in filteredRoutes"
         :key="route.id"
         :name="route.name"
-        :length-km="route.km"
+        :length-km="route.distanceKm"
         :difficulty="route.difficulty"
         :city="route.city"
         :is-selected="route.id === selectedId"
         @select="selectRoute(route.id)"
+        @delete="deleteRoute(route.id)"
       ></route-card>
     </div>
     <p id="total-km">Загальна протяжність усіх маршрутів: {{ totalKm }} км</p>
     <p v-if="selectedRoute" class="selected-info">
-      Обрано маршрут «{{ selectedRoute.name }}» — {{ selectedRoute.km }} км
+      Обрано маршрут «{{ selectedRoute.name }}» — {{ selectedRoute.distanceKm }} км
     </p>`
 });
 
@@ -109,7 +270,7 @@ function calculateTotalDistance(routesList) {
   let totalKm = 0;
 
   for (let i = 0; i < routesList.length; i++) {
-    totalKm += routesList[i].km;
+    totalKm += routesList[i].distanceKm;
   }
 
   console.log(`Загальна довжина всіх маршрутів: ${totalKm} км`);
@@ -135,7 +296,7 @@ function classifyRoutes(routesList) {
       recommendation = 'Рівень складності уточнюється.';
     }
 
-    console.log(`Маршрут "${route.name}" (${route.km} км, ${route.difficulty}): ${recommendation}`);
+    console.log(`Маршрут "${route.name}" (${route.distanceKm} км, ${route.difficulty}): ${recommendation}`);
   }
 }
 // Виклик функції
@@ -148,8 +309,8 @@ const estimateMinutes = km => Math.round((km / 15) * 60);
 // Виклик стрілкової функції для маршрутів з виведенням у консоль
 console.log('--- Оцінка часу поїздки ---');
 for (const route of routes) {
-  const estimatedTime = estimateMinutes(route.km);
-  console.log(`Орієнтовний час для «${route.name}» (${route.km} км): ~${estimatedTime} хв`);
+  const estimatedTime = estimateMinutes(route.distanceKm);
+  console.log(`Орієнтовний час для «${route.name}» (${route.distanceKm} км): ~${estimatedTime} хв`);
 }
 
 /*
@@ -176,7 +337,7 @@ function renderRoutes(routesList) {
     const card = document.createElement('article');
     card.classList.add('route-card');
 
-    card.dataset.km = route.km;
+    card.dataset.distanceKm = route.distanceKm;
 
     if (route.difficulty === 'легкий') {
       card.classList.add('easy');
@@ -192,7 +353,7 @@ function renderRoutes(routesList) {
     const details = document.createElement('p');
     // Якщо у маршруту є поле city (з API), виводимо його
     const cityText = route.city ? `Місто: ${route.city} | ` : '';
-    details.textContent = `${cityText}${route.km} км, ${route.difficulty}`;
+    details.textContent = `${cityText}${route.distanceKm} км, ${route.difficulty}`;
 
     card.append(title, details);
 
@@ -216,18 +377,24 @@ const nameInput = document.querySelector('#route-name');
 const lengthInput = document.querySelector('#route-length');
 const difficultySelect = document.querySelector('#route-difficulty');
 
-routeForm.addEventListener('submit', event => {
+routeForm.addEventListener('submit', async event => {
   //Скасування стандартного перезавантаження сторінки
   event.preventDefault();
 
   //Зчитування значень полів форми
   const name = nameInput.value.trim();
-  const km = Number(lengthInput.value);
+  const distanceKm = Number(lengthInput.value);
   const difficulty = difficultySelect.value;
 
-  //Створення нового об'єкта та додавання в масив routes
-  const newRoute = { id: Date.now(), name, km, difficulty };
-  routes.push(newRoute); // Vue сам перемалює список і перерахує загальну протяжність
+  //Створення нового об'єкта маршруту з унікальним id
+  const newRoute = { id: Date.now(), name, distanceKm, difficulty };
+  try {
+    await addItem(newRoute);       // Записуємо маршрут в IndexedDB
+    await refreshRoutesFromDb();   // Перемальовуємо список з даних бази
+  } catch (error) {
+    showDbError(error);
+    return;
+  }
 
   //Очищення полів форми після успішного додавання
   routeForm.reset();
@@ -309,17 +476,18 @@ async function loadRoutesFromApi() {
         id: `api-${user.id}`,            // Унікальний id для :key у v-for
         name: user.name,                 // Беремо назву чистою
         city: user.address.city,         // Зберігаємо місто в окреме поле
-        km: user.id * 5,                 // Обчислюємо км з поля id (з API)
+        distanceKm: user.id * 5,                 // Обчислюємо км з поля id (з API)
         difficulty: difficulties[user.id % 3] // Обчислюємо складність з поля id
       }));
 
-      // Дедуплікація: додаємо лише тих, кого ще немає
-      apiRoutes.forEach(apiRoute => {
+      // Дедуплікація: записуємо в IndexedDB лише ті маршрути, яких ще немає
+      for (const apiRoute of apiRoutes) {
         const exists = routes.some(r => r.name === apiRoute.name);
         if (!exists) {
-          routes.push(apiRoute);
+          await addItem(apiRoute);
         }
-      });
+      }
+      await refreshRoutesFromDb(); // Перемальовуємо список з даних бази
 
     } catch (error) {
       //Обробка помилки: виведення повідомлення користувачу та логування в консоль
@@ -330,8 +498,47 @@ async function loadRoutesFromApi() {
     showLoading(false);
   }
 }
-// Виклик функції для завантаження даних
-loadRoutesFromApi();
+// Читає всі маршрути з IndexedDB і передає їх у реактивний масив Vue для рендеру
+async function refreshRoutesFromDb() {
+  const items = await getAllItems();
+  routes.splice(0, routes.length, ...items); // замінюємо вміст того самого масиву
+  console.log('Список оновлено з IndexedDB:', items.length);
+}
+
+// Запуск застосунку: міграція → початкові дані (якщо база порожня) → рендер з IndexedDB → API
+async function initApp() {
+  await migrateFromLocalStorage();
+
+  const items = await getAllItems();
+  if (items.length === 0) {
+    for (const route of DEFAULT_ROUTES) {
+      await addItem(route);
+    }
+  }
+
+  await refreshRoutesFromDb();
+  await loadRoutesFromApi();
+}
+
+// Показує користувачу зрозуміле повідомлення, якщо IndexedDB недоступна,
+// а технічні деталі помилки виводить у консоль
+function showDbError(error) {
+  console.error('Помилка IndexedDB:', error);
+  const dbError = document.querySelector('#db-error');
+  if (dbError) {
+    dbError.textContent = 'Локальне сховище недоступне (можливо, увімкнено приватний режим перегляду). ' +
+      'Маршрути відображаються, але зміни не збережуться після перезавантаження сторінки.';
+    dbError.hidden = false;
+  }
+}
+
+// Запуск застосунку з обробкою помилки відкриття бази
+initApp().catch(error => {
+  showDbError(error);
+  // Резервний варіант: показуємо маршрути з localStorage або початкові
+  const savedRoutes = loadFromLocalStorage();
+  routes.splice(0, routes.length, ...(savedRoutes.length > 0 ? savedRoutes : DEFAULT_ROUTES));
+});
 
 // Прив'язка повторного виклику loadRoutesFromApi() до кнопки «Оновити»
 if (reloadBtn) {

@@ -14,7 +14,8 @@ const RouteCard = {
     lengthKm: { type: Number, required: true },
     difficulty: { type: String, required: true },
     city: { type: String, default: '' },
-    isSelected: { type: Boolean, default: false }
+    isSelected: { type: Boolean, default: false },
+    routeId: { type: [Number, String], required: true }  // ПР 13: id для посилання на деталі
   },
   emits: ['select', 'delete'],
   computed: {
@@ -37,6 +38,7 @@ const RouteCard = {
       <h3>{{ name }}</h3>
       <p>{{ city ? 'Місто: ' + city + ' | ' : '' }}{{ lengthKm }} км, {{ difficulty }}</p>
       <p class="route-time">Час у дорозі: ~{{ travelTime }}</p>
+      <a :href="'#/routes/' + routeId" class="details-link" data-link>Детальніше →</a>
       <button type="button" class="delete-btn" @click.stop="$emit('delete')">Видалити</button>
     </article>`
 };
@@ -247,6 +249,7 @@ const app = Vue.createApp({
         :difficulty="route.difficulty"
         :city="route.city"
         :is-selected="route.id === selectedId"
+        :route-id="route.id"
         @select="selectRoute(route.id)"
         @delete="deleteRoute(route.id)"
       ></route-card>
@@ -416,8 +419,9 @@ lengthInput.addEventListener('input', () => {
 const difficultyFilter = document.querySelector('#difficulty-filter');
 
 difficultyFilter.addEventListener('change', () => {
-  // Передаємо значення фільтра в реактивний стан Vue — computed filteredRoutes оновиться сам
-  vm.difficultyFilter = difficultyFilter.value;
+  // ПР 13: вибір у фільтрі — це перехід на сторінку /difficulty/:level (або на головну)
+  const level = Object.keys(DIFFICULTY_LEVELS).find(key => DIFFICULTY_LEVELS[key] === difficultyFilter.value);
+  navigate(level ? `/difficulty/${level}` : '/');
 });
 
 // Ендпоінт варіанта 14: JSONPlaceholder Users
@@ -532,8 +536,9 @@ function showDbError(error) {
   }
 }
 
-// Запуск застосунку з обробкою помилки відкриття бази
-initApp().catch(error => {
+// Запуск застосунку з обробкою помилки відкриття бази.
+// appReady — Promise, який виконується, коли дані вже завантажено (потрібен роутеру ПР 13)
+const appReady = initApp().catch(error => {
   showDbError(error);
   // Резервний варіант: показуємо маршрути з localStorage або початкові
   const savedRoutes = loadFromLocalStorage();
@@ -844,3 +849,228 @@ vm.$watch(
     }
   }
 );
+
+// =====================================================================
+// ПР №13. SPA та клієнтська маршрутизація (варіант 14).
+// Обрано hash-based роутинг (location.hash + подія hashchange):
+// частина адреси після # не надсилається на сервер, тому вкладені маршрути
+// на кшталт #/routes/3 коректно відкриваються навіть після F5 у Live Server
+// без додаткового налаштування сервера (на відміну від History API).
+// =====================================================================
+
+// ---------- Крок 2. Контейнер сторінки ----------
+
+// Єдиний контейнер, у який роутер рендерить вміст кожної «сторінки»
+const pageContainer = document.querySelector('#page');
+
+// Готові блоки інтерфейсу з попередніх практикумів. Вони створюються один раз
+// (список маршрутів — компонентом Vue, профіль висоти — на Canvas), а роутер лише
+// вставляє в контейнер ті з них, що потрібні для поточної сторінки.
+const mapSection = document.querySelector('#map-section');
+const routesSection = document.querySelector('#routes-section');
+const detailsSection = document.querySelector('#details-section');
+
+// ---------- Крок 3. Таблиця маршрутів ----------
+
+// Відповідність рівня складності в адресі (латиниця) значенню в даних маршруту
+const DIFFICULTY_LEVELS = { easy: 'легкий', medium: 'середній', hard: 'важкий' };
+
+// Таблиця маршрутів SPA: шаблон шляху → view-функція, що рендерить сторінку.
+// Назва pageRoutes, щоб не плутати з масивом веломаршрутів routes.
+const pageRoutes = [
+  { path: '/',                  view: renderHomePage },          // список маршрутів
+  { path: '/routes/:id',        view: renderRouteDetailsPage },  // деталі одного маршруту
+  { path: '/difficulty/:level', view: renderDifficultyPage }     // фільтр за складністю
+];
+
+
+// ---------- Крок 4. Зіставлення шляху з таблицею маршрутів ----------
+
+// Порівнює шлях із шаблонами pageRoutes і повертає view-функцію та параметри
+// (наприклад, '/routes/3' → { view: renderRouteDetailsPage, params: { id: '3' } }).
+// Якщо жоден шаблон не підійшов — повертає null (сторінка «Не знайдено»).
+function matchRoute(path) {
+  const pathParts = path.split('/').filter(Boolean);
+
+  for (const route of pageRoutes) {
+    const routeParts = route.path.split('/').filter(Boolean);
+    if (routeParts.length !== pathParts.length) continue;
+
+    const params = {};
+    const isMatch = routeParts.every((part, i) => {
+      if (part.startsWith(':')) {
+        params[part.slice(1)] = decodeURIComponent(pathParts[i]);  // значення параметра
+        return true;
+      }
+      return part === pathParts[i];  // звичайний сегмент має збігатися точно
+    });
+
+    if (isMatch) return { view: route.view, params };
+  }
+  return null;
+}
+
+
+// ---------- Крок 5. View-функції сторінок ----------
+
+// Очищує контейнер сторінки і вставляє в нього потрібні блоки
+function showPageBlocks(pageName, ...blocks) {
+  pageContainer.innerHTML = '';             // очищення попередньої «сторінки»
+  pageContainer.dataset.page = pageName;    // назва сторінки (для стилів)
+  pageContainer.append(...blocks);
+  window.scrollTo(0, 0);
+}
+
+// Перечитує маршрути з IndexedDB (ПР 11) — компонент Vue (ПР 10) сам перемалює картки
+async function loadRoutesForPage() {
+  try {
+    await refreshRoutesFromDb();
+  } catch (error) {
+    console.error('Не вдалося оновити маршрути з IndexedDB:', error);
+  }
+}
+
+// «/» — головна: карта і повний список маршрутів
+async function renderHomePage() {
+  showPageBlocks('home', mapSection, routesSection);
+  vm.difficultyFilter = 'all';
+  difficultyFilter.value = 'all';
+  document.title = 'Карта веломаршрутів';
+  await loadRoutesForPage();
+}
+
+// «/difficulty/:level» — список, відфільтрований за складністю
+async function renderDifficultyPage(params) {
+  const difficulty = DIFFICULTY_LEVELS[params.level];
+  if (!difficulty) {
+    renderNotFoundPage();   // крок 9: невідомий рівень складності
+    return;
+  }
+  showPageBlocks('difficulty', routesSection);
+  vm.difficultyFilter = difficulty;          // computed filteredRoutes відфільтрує картки
+  difficultyFilter.value = difficulty;
+  document.title = `Маршрути: ${difficulty} — Карта веломаршрутів`;
+  await loadRoutesForPage();
+}
+
+// «/routes/:id» — сторінка деталей одного маршруту (крок 8)
+async function renderRouteDetailsPage(params) {
+  await loadRoutesForPage();   // актуальні дані з IndexedDB
+  // id в адресі — це рядок, а в даних може бути числом (1, Date.now()) або рядком ('api-1')
+  const route = routes.find(r => String(r.id) === params.id);
+
+  if (!route) {
+    renderNotFoundPage();      // крок 9: маршруту з таким id немає
+    return;
+  }
+
+  showPageBlocks('details', detailsSection);
+  document.title = `${route.name} — Карта веломаршрутів`;
+  renderRouteDetailsList(route);
+
+  // Профіль висоти з ПР 12: вибір маршруту запускає його анімацію на Canvas
+  if (vm.selectedId === route.id) {
+    showRouteProfile(vm.selectedRoute);
+  } else {
+    vm.selectedId = route.id;
+  }
+}
+
+// Виводить характеристики маршруту списком (час — функцією estimateMinutes з ПР 5)
+function renderRouteDetailsList(route) {
+  const detailsList = document.querySelector('#details-list');
+  detailsList.innerHTML = '';
+  const items = [
+    ['Довжина', `${route.distanceKm} км`],
+    ['Складність', route.difficulty],
+    ['Місто', route.city || '—'],
+    ['Час у дорозі', `~${estimateMinutes(route.distanceKm)} хв`]
+  ];
+  items.forEach(([label, value]) => {
+    const li = document.createElement('li');
+    li.textContent = `${label}: ${value}`;
+    detailsList.append(li);
+  });
+}
+
+// Визначає поточний шлях з адреси (частина після #) і рендерить відповідну сторінку
+function getCurrentPath() {
+  return location.hash.slice(1) || '/';
+}
+
+async function renderCurrentPage() {
+  const match = matchRoute(getCurrentPath());
+  if (!match) {
+    renderNotFoundPage();   // крок 9: шлях не відповідає жодному маршруту
+    return;
+  }
+  await match.view(match.params);
+}
+
+// Перший рендер — після того, як застосунок завантажив дані з IndexedDB
+appReady.then(renderCurrentPage);
+
+
+// ---------- Крок 6. Клієнтська навігація за посиланнями data-link ----------
+
+// Перехід на інший маршрут без перезавантаження: змінюємо лише хеш адреси,
+// а подія hashchange (крок 7) сама викличе рендер нової сторінки
+function navigate(path) {
+  if (getCurrentPath() === path) {
+    renderCurrentPage();   // той самий маршрут — просто перемальовуємо
+    return;
+  }
+  location.hash = path;
+}
+
+// Перехоплення кліків по всіх посиланнях з атрибутом data-link (меню й картки)
+document.addEventListener('click', event => {
+  const link = event.target.closest('a[data-link]');
+  if (!link) return;
+  event.preventDefault();                        // скасовуємо звичайний перехід браузера
+  navigate(link.getAttribute('href').slice(1));  // '#/routes/3' → '/routes/3'
+});
+
+// Підсвічує в меню посилання поточної сторінки
+function highlightActiveLink() {
+  document.querySelectorAll('header nav a[data-link]').forEach(link => {
+    const isActive = link.getAttribute('href').slice(1) === getCurrentPath();
+    link.classList.toggle('active', isActive);
+  });
+}
+
+// ---------- Крок 7. Кнопки «назад» / «вперед» браузера ----------
+
+// Будь-яка зміна хеша (клік по посиланню, navigate(), «назад»/«вперед» браузера)
+// перемальовує вміст відповідно до нової адреси
+window.addEventListener('hashchange', () => {
+  renderCurrentPage();
+  highlightActiveLink();
+});
+appReady.then(highlightActiveLink);
+
+
+// ---------- Крок 9. Сторінка «Не знайдено» ----------
+
+// Показується, якщо шлях не знайдено в таблиці маршрутів,
+// або в адресі вказано неіснуючий id маршруту чи рівень складності
+function renderNotFoundPage() {
+  const section = document.createElement('section');
+  section.className = 'not-found';
+
+  const title = document.createElement('h2');
+  title.textContent = 'Сторінку не знайдено';
+
+  const text = document.createElement('p');
+  text.textContent = `За адресою «${getCurrentPath()}» нічого немає.`;
+
+  const homeLink = document.createElement('a');
+  homeLink.href = '#/';
+  homeLink.dataset.link = '';          // клієнтська навігація, як і в меню
+  homeLink.className = 'details-link';
+  homeLink.textContent = '← На головну';
+
+  section.append(title, text, homeLink);
+  showPageBlocks('not-found', section);
+  document.title = 'Не знайдено — Карта веломаршрутів';
+}

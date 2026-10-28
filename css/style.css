@@ -401,3 +401,42 @@ footer {
   background-color: #9ca3af;
   cursor: not-allowed;
 }
+
+/* ПР 13: на сторінках з одним блоком контейнер займає всю ширину */
+#page[data-page="difficulty"],
+#page[data-page="details"],
+#page[data-page="not-found"] {
+  grid-template-columns: 1fr;
+}
+
+/* ПР 13: посилання на сторінку деталей у картці */
+.details-link {
+  align-self: flex-start;
+  color: #1b4332;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.details-link:hover {
+  text-decoration: underline;
+}
+
+/* ПР 13: активний пункт меню */
+header nav a.active {
+  color: #ffb74d;
+  border-bottom: 2px solid #ffb74d;
+}
+
+/* ПР 13: характеристики маршруту на сторінці деталей */
+.details-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+/* ПР 13: сторінка «Не знайдено» */
+.not-found {
+  padding: 32px 24px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  text-align: center;
+}

@@ -12,13 +12,16 @@
 <body>
 <header>
   <h1>Карта веломаршрутів</h1>
+  <!-- ПР 13: посилання меню з data-link — клієнтська навігація без перезавантаження -->
   <nav>
-    <a href="#map-section">Карта</a>
-    <a href="#routes-section">Маршрути</a>
-    <a href="#details-section">Деталі маршруту</a>
+    <a href="#/" data-link>Усі маршрути</a>
+    <a href="#/difficulty/easy" data-link>Легкі</a>
+    <a href="#/difficulty/medium" data-link>Середні</a>
+    <a href="#/difficulty/hard" data-link>Важкі</a>
   </nav>
 </header>
-<main>
+<!-- ПР 13: єдиний контейнер сторінки — сюди роутер рендерить усі «сторінки» SPA -->
+<main id="page">
     <section id="map-section">
       <h2>Карта</h2>
       <img src="assets/img/map-placeholder.png" alt="Схематична карта веломаршрутів міста">
@@ -76,18 +79,21 @@
         <button type="submit">Додати маршрут</button>
       </form>
     </section>
+    <aside id="details-section">
+      <h2>Деталі обраного маршруту</h2>
+      <!-- ПР 13: посилання назад і характеристики маршруту на сторінці деталей -->
+      <a href="#/" data-link class="details-link">← До списку маршрутів</a>
+      <p id="details-text">Оберіть маршрут зі списку, щоб переглянути детальний опис, покриття дороги та перепад висот.</p>
+      <ul id="details-list" class="details-list"></ul>
+      <!-- ПР 12: полотно для профілю висоти обраного маршруту -->
+      <canvas id="elevation-chart" width="600" height="250"></canvas>
+      <!-- ПР 12: керування анімацією профілю -->
+      <div class="chart-controls">
+        <button type="button" id="replay-animation-btn" disabled>↻ Повторити анімацію</button>
+        <button type="button" id="stop-animation-btn" disabled>⏹ Зупинити</button>
+      </div>
+    </aside>
   </main>
-  <aside id="details-section">
-    <h2>Деталі обраного маршруту</h2>
-    <p id="details-text">Оберіть маршрут зі списку, щоб переглянути детальний опис, покриття дороги та перепад висот.</p>
-    <!-- ПР 12: полотно для профілю висоти обраного маршруту -->
-    <canvas id="elevation-chart" width="600" height="250"></canvas>
-    <!-- ПР 12: керування анімацією профілю -->
-    <div class="chart-controls">
-      <button type="button" id="replay-animation-btn" disabled>↻ Повторити анімацію</button>
-      <button type="button" id="stop-animation-btn" disabled>⏹ Зупинити</button>
-    </div>
-  </aside>
 <footer>
     <p>Проєкт «Карта веломаршрутів міста». Виконала студентка групи ІП-51 Ніколаєва С.О. &copy; 2026</p>
   </footer>

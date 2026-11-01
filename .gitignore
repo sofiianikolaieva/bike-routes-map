@@ -1,2 +1,4 @@
 .vscode/
 .DS_Store
+# ПР 14: залежності Node.js не зберігаємо в репозиторії (відновлюються командою npm install)
+node_modules/

@@ -1,0 +1,10 @@
+[
+  { "id": 101, "name": "Русанівська набережна", "distanceKm": 8.5, "difficulty": "легкий", "city": "Київ" },
+  { "id": 102, "name": "Оболонська набережна — парк «Наталка»", "distanceKm": 11, "difficulty": "легкий", "city": "Київ" },
+  { "id": 103, "name": "Ботанічний сад — Видубичі", "distanceKm": 9, "difficulty": "середній", "city": "Київ" },
+  { "id": 104, "name": "Феофанія — Пирогів", "distanceKm": 16, "difficulty": "середній", "city": "Київ" },
+  { "id": 105, "name": "Пуща-Водиця", "distanceKm": 24, "difficulty": "середній", "city": "Київ" },
+  { "id": 106, "name": "Конча-Заспа", "distanceKm": 32, "difficulty": "середній", "city": "Київ" },
+  { "id": 107, "name": "Китаївська пустинь", "distanceKm": 14, "difficulty": "важкий", "city": "Київ" },
+  { "id": 108, "name": "Андріївський узвіз — Володимирська гірка", "distanceKm": 6, "difficulty": "важкий", "city": "Київ" }
+]

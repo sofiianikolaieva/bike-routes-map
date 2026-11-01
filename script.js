@@ -424,8 +424,9 @@ difficultyFilter.addEventListener('change', () => {
   navigate(level ? `/difficulty/${level}` : '/');
 });
 
-// Ендпоінт варіанта 14: JSONPlaceholder Users
-const API_URL = 'https://jsonplaceholder.typicode.com/users';
+// ПР 14: власний локальний сервер (server/server.js) замість JSONPlaceholder.
+// Відносна адреса — запит іде на той самий сервер, що віддав сторінку (http://localhost:3000)
+const API_URL = '/api/routes';
 
 const loadingStatus = document.querySelector('#loading-status');
 const reloadBtn = document.querySelector('#reload-api-btn');
@@ -474,15 +475,9 @@ async function loadRoutesFromApi() {
       const data = await response.json();
       console.log('Отримані дані з API:', data);
 
-      //Адаптація даних API під структуру маршруту та виведення в DOM
-      const difficulties = ['легкий', 'середній', 'важкий'];
-      const apiRoutes = data.slice(0, 5).map(user => ({
-        id: `api-${user.id}`,            // Унікальний id для :key у v-for
-        name: user.name,                 // Беремо назву чистою
-        city: user.address.city,         // Зберігаємо місто в окреме поле
-        distanceKm: user.id * 5,                 // Обчислюємо км з поля id (з API)
-        difficulty: difficulties[user.id % 3] // Обчислюємо складність з поля id
-      }));
+      // ПР 14: власний сервер уже повертає маршрути у формі застосунку
+      // (id, name, distanceKm, difficulty, city), тому адаптація полів не потрібна
+      const apiRoutes = data;
 
       // Дедуплікація: записуємо в IndexedDB лише ті маршрути, яких ще немає
       for (const apiRoute of apiRoutes) {

@@ -8,7 +8,8 @@ const path = require('path');
 const routes = require('./data/routes.json');
 
 const app = express();
-const PORT = 3000;
+// ПР 15: на хостингу (Render) порт задає змінна середовища PORT, локально — 3000
+const PORT = process.env.PORT || 3000;
 
 // ---------- Крок 5. Ендпоінт списку маршрутів ----------
 // GET /api/routes — повертає весь масив маршрутів у форматі JSON

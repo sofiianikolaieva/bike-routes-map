@@ -440,3 +440,13 @@ header nav a.active {
   border-radius: 12px;
   text-align: center;
 }
+
+/* ПР 15: повідомлення про додавання маршруту */
+.route-notice {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background-color: #e8f5e9;
+  border-left: 4px solid #2d6a4f;
+  border-radius: 6px;
+  color: #1b4332;
+}

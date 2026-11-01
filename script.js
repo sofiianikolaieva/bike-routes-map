@@ -398,6 +398,7 @@ routeForm.addEventListener('submit', async event => {
     showDbError(error);
     return;
   }
+  showAddedNotice(newRoute);       // ПР 15: повідомлення «Маршрут … додано»
 
   //Очищення полів форми після успішного додавання
   routeForm.reset();
@@ -456,7 +457,7 @@ function showError(message) {
 }
 
 // Асинхронна функція для завантаження маршрутів із зовнішнього API,
-// https://jsonplaceholder.typicode.com/users
+// GET /api/routes на власному сервері (ПР 14; до ПР 14 — JSONPlaceholder)
 async function loadRoutesFromApi() {
   //Показ стану завантаження перед запитом
   showLoading(true);
@@ -910,7 +911,7 @@ function matchRoute(path) {
 
 // Очищує контейнер сторінки і вставляє в нього потрібні блоки
 function showPageBlocks(pageName, ...blocks) {
-  pageContainer.innerHTML = '';             // очищення попередньої «сторінки»
+  pageContainer.replaceChildren();          // очищення попередньої «сторінки» (ПР 15: без innerHTML)
   pageContainer.dataset.page = pageName;    // назва сторінки (для стилів)
   pageContainer.append(...blocks);
   window.scrollTo(0, 0);
@@ -974,7 +975,7 @@ async function renderRouteDetailsPage(params) {
 // Виводить характеристики маршруту списком (час — функцією estimateMinutes з ПР 5)
 function renderRouteDetailsList(route) {
   const detailsList = document.querySelector('#details-list');
-  detailsList.innerHTML = '';
+  detailsList.replaceChildren();   // ПР 15: очищення без innerHTML
   const items = [
     ['Довжина', `${route.distanceKm} км`],
     ['Складність', route.difficulty],
@@ -1069,3 +1070,45 @@ function renderNotFoundPage() {
   showPageBlocks('not-found', section);
   document.title = 'Не знайдено — Карта веломаршрутів';
 }
+
+
+// =====================================================================
+// ПР №15. Безпека: аудит XSS, сховищ і секретів (варіант 14).
+// =====================================================================
+
+// ---------- Крок 3. Повідомлення про додавання маршруту (ВИПРАВЛЕНА версія) ----------
+// Було (вразливо): routeNotice.innerHTML = `Маршрут <strong>«${route.name}»</strong> ...`;
+// innerHTML трактував назву від користувача як HTML, тому <img onerror=...> виконував скрипт.
+// Стало: розмітку створюємо через createElement, а дані користувача вставляємо лише
+// через textContent — він завжди трактує рядок як текст і ніколи не виконує HTML.
+const routeNotice = document.querySelector('#route-notice');
+
+function showAddedNotice(route) {
+  routeNotice.textContent = '';                          // очищення без innerHTML
+
+  const nameElement = document.createElement('strong');
+  nameElement.textContent = `«${route.name}»`;           // безпечно: лише текст
+
+  routeNotice.append(
+    'Маршрут ',
+    nameElement,
+    ` додано (${route.distanceKm} км)`                   // append з рядком теж створює текстовий вузол
+  );
+  routeNotice.hidden = false;
+}
+
+// ---------- Крок 5. Аудит інших місць innerHTML ----------
+// Перевірено всі використання innerHTML у проєкті:
+//  • рядок ~337, routesContainer.innerHTML = '' — ручний рендер ПР 7, закоментований у ПР 10;
+//    сама функція renderRoutes() використовувала createElement і textContent — безпечно;
+//  • showPageBlocks() і renderRouteDetailsList() (ПР 13) лише очищували контейнер
+//    (innerHTML = '') — замінено на replaceChildren(), щоб у коді не лишалось innerHTML;
+//  • картки маршрутів рендерить Vue: {{ name }} автоматично екранує HTML, v-html не використовується;
+//  • деталі маршруту, сторінка «Не знайдено», повідомлення про помилки — через textContent;
+//  • назва маршруту на Canvas (ПР 12) малюється fillText() — це пікселі, а не HTML.
+// Висновок: вразливим було лише повідомлення showAddedNotice() — виправлено на кроці 3.
+
+// ---------- Крок 7. Секрети в коді ----------
+// Пошуком у редакторі перевірено script.js, index.html і server/:
+// API-ключів, токенів доступу і паролів у коді немає.
+// Зовнішні адреси — лише публічний CDN бібліотеки Vue (unpkg.com).
